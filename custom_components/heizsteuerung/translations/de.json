@@ -1,0 +1,238 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Heizsteuerung einrichten",
+        "description": "Wetter- und Energiequellen für das ganze Haus. Räume legst du danach als „Raum“ an.",
+        "data": {
+          "outdoor_sensors": "Außentemperatur (Wetterstation)",
+          "weather_entities": "Online-Wetter (Vorhersage)",
+          "solar_radiation_sensor": "Sonneneinstrahlung (W/m²)",
+          "grid_power_sensor": "Netzleistung (W)",
+          "grid_export_negative": "Einspeisung ist negativ",
+          "battery_power_sensor": "Hausakku-Leistung (W)"
+        },
+        "data_description": {
+          "outdoor_sensors": "Ein oder mehrere Außensensoren. Fallen sie aus, werden die Online-Wetterdaten genutzt.",
+          "weather_entities": "Wetter-Entitäten mit Stundenvorhersage, z. B. met.no und DWD.",
+          "solar_radiation_sensor": "Optional, für die Sonnenbremse.",
+          "grid_power_sensor": "Optional, für den PV-Überschuss der elektrischen Fußbodenheizung.",
+          "grid_export_negative": "An, wenn der Netzsensor bei Einspeisung negative Werte liefert (z. B. evcc).",
+          "battery_power_sensor": "Optional. Positiv = Laden. Verhindert, dass der PV-Boost den Akku leert."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Die Heizsteuerung ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wetter & Energie",
+        "data": {
+          "outdoor_sensors": "Außentemperatur (Wetterstation)",
+          "weather_entities": "Online-Wetter (Vorhersage)",
+          "solar_radiation_sensor": "Sonneneinstrahlung (W/m²)",
+          "grid_power_sensor": "Netzleistung (W)",
+          "grid_export_negative": "Einspeisung ist negativ",
+          "battery_power_sensor": "Hausakku-Leistung (W)"
+        },
+        "data_description": {
+          "outdoor_sensors": "Ein oder mehrere Außensensoren. Fallen sie aus, werden die Online-Wetterdaten genutzt.",
+          "weather_entities": "Wetter-Entitäten mit Stundenvorhersage, z. B. met.no und DWD.",
+          "solar_radiation_sensor": "Optional, für die Sonnenbremse.",
+          "grid_power_sensor": "Optional, für den PV-Überschuss der elektrischen Fußbodenheizung.",
+          "grid_export_negative": "An, wenn der Netzsensor bei Einspeisung negative Werte liefert (z. B. evcc).",
+          "battery_power_sensor": "Optional. Positiv = Laden. Verhindert, dass der PV-Boost den Akku leert."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "room": {
+      "step": {
+        "user": {
+          "title": "Raum hinzufügen",
+          "data": {
+            "name": "Raumname",
+            "heating_type": "Heizsystem",
+            "climates": "Thermostate",
+            "temperature_sensors": "Zusätzliche Raumtemperatursensoren",
+            "window_sensors": "Fenster- und Türkontakte",
+            "persons": "Zuständige Personen",
+            "heating_indicators": "Heiz-Anzeige (optional)",
+            "default_target": "Start-Soll",
+            "eco_temperature": "Abwesenheitstemperatur",
+            "night_enabled": "Nachtabsenkung",
+            "night_setback": "Nachtabsenkung um",
+            "summer_off": "Heizgrenze beachten",
+            "window_open_delay": "Fenster-offen-Verzögerung",
+            "window_close_delay": "Fenster-zu-Verzögerung",
+            "absence_delay": "Abwesenheit erst nach",
+            "sun_brake": "Sonnenbremse",
+            "sun_threshold": "Sonnenbremse ab",
+            "pv_boost": "PV-Überschuss nutzen",
+            "pv_target": "Ziel bei PV-Überschuss",
+            "pv_power": "Heizleistung"
+          },
+          "data_description": {
+            "climates": "Alle Heizkörper-/Fußbodenthermostate dieses Raums.",
+            "temperature_sensors": "Werden bevorzugt (Median). Ohne Sensor wird der Thermostat-Fühler genutzt.",
+            "window_sensors": "Ist einer offen, geht die Heizung auf 5 °C.",
+            "persons": "Ist keine davon zuhause, wird auf die Abwesenheitstemperatur abgesenkt. Leer = immer anwesend (z. B. Bad).",
+            "heating_indicators": "Ventilöffnung in % oder Heizrelais – zeigt in HomeKit „heizt“.",
+            "default_target": "Soll beim ersten Start. Danach gilt der Wert aus HomeKit.",
+            "summer_off": "Aus = dieser Raum heizt auch, wenn es draußen warm ist.",
+            "sun_brake": "Bei starker Sonne nicht aktiv heizen, solange der Raum fast warm ist.",
+            "pv_boost": "Nur für elektrische Fußbodenheizung."
+          }
+        },
+        "reconfigure": {
+          "title": "Raum bearbeiten",
+          "data": {
+            "name": "Raumname",
+            "heating_type": "Heizsystem",
+            "climates": "Thermostate",
+            "temperature_sensors": "Zusätzliche Raumtemperatursensoren",
+            "window_sensors": "Fenster- und Türkontakte",
+            "persons": "Zuständige Personen",
+            "heating_indicators": "Heiz-Anzeige (optional)",
+            "default_target": "Start-Soll",
+            "eco_temperature": "Abwesenheitstemperatur",
+            "night_enabled": "Nachtabsenkung",
+            "night_setback": "Nachtabsenkung um",
+            "summer_off": "Heizgrenze beachten",
+            "window_open_delay": "Fenster-offen-Verzögerung",
+            "window_close_delay": "Fenster-zu-Verzögerung",
+            "absence_delay": "Abwesenheit erst nach",
+            "sun_brake": "Sonnenbremse",
+            "sun_threshold": "Sonnenbremse ab",
+            "pv_boost": "PV-Überschuss nutzen",
+            "pv_target": "Ziel bei PV-Überschuss",
+            "pv_power": "Heizleistung"
+          },
+          "data_description": {
+            "climates": "Alle Heizkörper-/Fußbodenthermostate dieses Raums.",
+            "temperature_sensors": "Werden bevorzugt (Median). Ohne Sensor wird der Thermostat-Fühler genutzt.",
+            "window_sensors": "Ist einer offen, geht die Heizung auf 5 °C.",
+            "persons": "Ist keine davon zuhause, wird auf die Abwesenheitstemperatur abgesenkt. Leer = immer anwesend (z. B. Bad).",
+            "heating_indicators": "Ventilöffnung in % oder Heizrelais – zeigt in HomeKit „heizt“.",
+            "default_target": "Soll beim ersten Start. Danach gilt der Wert aus HomeKit.",
+            "summer_off": "Aus = dieser Raum heizt auch, wenn es draußen warm ist.",
+            "sun_brake": "Bei starker Sonne nicht aktiv heizen, solange der Raum fast warm ist.",
+            "pv_boost": "Nur für elektrische Fußbodenheizung."
+          }
+        }
+      },
+      "initiate_flow": {
+        "user": "Raum hinzufügen"
+      },
+      "entry_type": "Raum",
+      "abort": {
+        "reconfigure_successful": "Raum gespeichert."
+      }
+    }
+  },
+  "selector": {
+    "heating_type": {
+      "options": {
+        "radiator": "Heizkörper",
+        "floor_electric": "Fußbodenheizung elektrisch",
+        "floor_water": "Fußbodenheizung Wasser"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "raum": {
+        "name": "Raum"
+      }
+    },
+    "sensor": {
+      "effektives_ziel": {
+        "name": "Effektives Ziel"
+      },
+      "thermostat_sollwert": {
+        "name": "Thermostat-Sollwert"
+      },
+      "grund": {
+        "name": "Grund",
+        "state": {
+          "aus": "Aus",
+          "fenster_offen": "Fenster offen",
+          "heizgrenze": "Heizgrenze (warm draußen)",
+          "auskuehlschutz": "Auskühlschutz",
+          "abwesend": "Abwesend",
+          "nacht": "Nachtabsenkung",
+          "vorheizen": "Vorheizen",
+          "sonne": "Sonne heizt",
+          "pv_ueberschuss": "PV-Überschuss",
+          "komfort": "Komfort",
+          "steuerung_pausiert": "Steuerung pausiert"
+        }
+      },
+      "aussentemperatur": {
+        "name": "Außentemperatur"
+      },
+      "aussentemperatur_gedaempft": {
+        "name": "Außentemperatur gedämpft"
+      },
+      "vorhersage_12h": {
+        "name": "Vorhersage 12 h"
+      },
+      "heizgrenze_temperatur": {
+        "name": "Heizgrenze-Temperatur"
+      },
+      "jahreszeit": {
+        "name": "Jahreszeit",
+        "state": {
+          "winter": "Winter",
+          "uebergang": "Übergang",
+          "sommer": "Sommer"
+        }
+      }
+    },
+    "binary_sensor": {
+      "heizperiode": {
+        "name": "Heizperiode"
+      },
+      "fenster": {
+        "name": "Fenster"
+      },
+      "anwesend": {
+        "name": "Anwesend"
+      }
+    },
+    "number": {
+      "heating_limit_off": {
+        "name": "Heizgrenze aus ab"
+      },
+      "heating_limit_on": {
+        "name": "Heizgrenze an unter"
+      },
+      "protect_temperature": {
+        "name": "Auskühlschutz"
+      },
+      "winter_below": {
+        "name": "Winter unter"
+      }
+    },
+    "time": {
+      "night_start": {
+        "name": "Nacht Beginn"
+      },
+      "night_end": {
+        "name": "Nacht Ende (warm um)"
+      }
+    },
+    "switch": {
+      "control_active": {
+        "name": "Steuerung aktiv"
+      },
+      "auto_season": {
+        "name": "Automatische Heizgrenze"
+      }
+    }
+  }
+}

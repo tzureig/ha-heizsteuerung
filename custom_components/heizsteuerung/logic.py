@@ -135,6 +135,15 @@ def decision_temperature(damped: float | None, forecast: float | None) -> float 
     return round(0.5 * damped + 0.5 * forecast, 2)
 
 
+def calendar_offset(day_of_year: int, amplitude: float) -> float:
+    """Jahreszeitliche Verschiebung der Grenzen (Nordhalbkugel).
+
+    +amplitude Mitte Januar (Heizung bleibt eher an), -amplitude Mitte Juli
+    (Heizung bleibt eher aus), ~0 im April und Oktober. Stufenlos per Kosinus.
+    """
+    return round(amplitude * math.cos(2 * math.pi * (day_of_year - 15) / 365.25), 2)
+
+
 def season_next(
     heating: bool,
     decision_temp: float | None,

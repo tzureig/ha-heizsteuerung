@@ -222,6 +222,9 @@
       },
       "winter_below": {
         "name": "Winter unter"
+      },
+      "calendar_influence": {
+        "name": "Kalender-Einfluss"
       }
     },
     "time": {

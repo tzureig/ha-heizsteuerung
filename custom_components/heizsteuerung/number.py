@@ -9,10 +9,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
+    DEFAULT_CALENDAR,
     DEFAULT_LIMIT_OFF,
     DEFAULT_LIMIT_ON,
     DEFAULT_PROTECT,
     DEFAULT_WINTER_BELOW,
+    SETTING_CALENDAR,
     SETTING_LIMIT_OFF,
     SETTING_LIMIT_ON,
     SETTING_PROTECT,
@@ -27,6 +29,7 @@ NUMBERS = [
     (SETTING_LIMIT_ON, DEFAULT_LIMIT_ON, 8.0, 22.0),
     (SETTING_PROTECT, DEFAULT_PROTECT, 10.0, 20.0),
     (SETTING_WINTER_BELOW, DEFAULT_WINTER_BELOW, -10.0, 12.0),
+    (SETTING_CALENDAR, DEFAULT_CALENDAR, 0.0, 5.0),
 ]
 
 

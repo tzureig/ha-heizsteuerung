@@ -221,3 +221,16 @@ def test_pv_boost():
     assert pv_boost_next(st, T0 + timedelta(minutes=11), 0, 800, 2075)
     assert not pv_boost_next(st, T0 + timedelta(minutes=16), 0, 800, 2075)
     assert not pv_boost_next(st, T0, None, 0, 2075)
+
+
+def test_calendar_offset():
+    from custom_components.heizsteuerung.logic import calendar_offset
+    assert calendar_offset(15, 2.0) == 2.0          # Mitte Januar
+    assert calendar_offset(197, 2.0) == -2.0        # Mitte Juli
+    assert abs(calendar_offset(106, 2.0)) < 0.2     # Mitte April
+    assert abs(calendar_offset(289, 2.0)) < 0.2     # Mitte Oktober
+    assert calendar_offset(197, 0.0) == 0.0         # ausgeschaltet
+    # Januar-Warmphase: 17 °C schaltet nicht ab (Grenze 16+2=18)
+    assert season_next(True, 17.0, 17.0, 16 + calendar_offset(15, 2), 14 + calendar_offset(15, 2)) is True
+    # Juli-Kaeltephase: 13 °C schaltet nicht ein (Grenze 14-2=12)
+    assert season_next(False, 13.0, 13.0, 16 + calendar_offset(197, 2), 14 + calendar_offset(197, 2)) is False

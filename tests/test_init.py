@@ -85,6 +85,11 @@ async def setup(hass: HomeAssistant, freezer: FrozenDateTimeFactory):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     set_temp, set_mode = fake_thermostat(hass)
+    # Tests sollen nicht vom heutigen Datum abhaengen (Kalender separat getestet)
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.heizsteuerung_kalender_einfluss", "value": 0.0}, blocking=True,
+    )
     return entry, set_temp, set_mode
 
 
@@ -363,3 +368,26 @@ async def test_all_settings_survive_restart(hass: HomeAssistant, freezer, setup)
         "climate", "set_hvac_mode", {"entity_id": ROOM, "hvac_mode": "heat"}, blocking=True
     )
     assert hass.states.get(ROOM).attributes["temperature"] == 21.0
+
+
+async def test_calendar_shifts_limits(hass: HomeAssistant, freezer, setup) -> None:
+    """Mitte Januar: Grenzen +2 K -> 17 °C Tagesmittel schaltet die Heizung NICHT ab."""
+    entry, _set_temp, _ = setup
+    freezer.move_to("2027-01-15 12:00:00+00:00")
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.heizsteuerung_kalender_einfluss", "value": 2.0}, blocking=True,
+    )
+    hass.states.async_set("sensor.aussen", "17.0")
+    await advance(hass, freezer, 3 * 24 * 3600)
+    dec = hass.states.get("sensor.heizsteuerung_heizgrenze_temperatur")
+    assert dec.attributes["kalender_korrektur"] == 2.0
+    assert dec.attributes["heizung_aus_ab"] == 18.0
+    assert hass.states.get("binary_sensor.heizsteuerung_heizperiode").state == "on"
+    # Ohne Kalender waere bei 17 °C laengst Sommer
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.heizsteuerung_kalender_einfluss", "value": 0.0}, blocking=True,
+    )
+    await advance(hass, freezer, 120)
+    assert hass.states.get("binary_sensor.heizsteuerung_heizperiode").state == "off"

@@ -52,6 +52,8 @@ SETTING_LIMIT_OFF: Final = "heating_limit_off"
 SETTING_LIMIT_ON: Final = "heating_limit_on"
 SETTING_PROTECT: Final = "protect_temperature"
 SETTING_WINTER_BELOW: Final = "winter_below"
+SETTING_CALENDAR: Final = "calendar_influence"
+DEFAULT_CALENDAR: Final = 2.0
 DEFAULT_WINTER_BELOW: Final = 5.0
 
 # Jahreszeiten-Logik

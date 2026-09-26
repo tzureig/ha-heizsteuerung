@@ -26,6 +26,7 @@ from .const import (
     DEFAULT_NIGHT_END,
     DEFAULT_NIGHT_START,
     DEFAULT_PROTECT,
+    DEFAULT_CALENDAR,
     DEFAULT_WINTER_BELOW,
     FORECAST_REFRESH_MINUTES,
     PHASE_SUMMER,
@@ -36,12 +37,13 @@ from .const import (
     SETTING_NIGHT_END,
     SETTING_NIGHT_START,
     SETTING_PROTECT,
+    SETTING_CALENDAR,
     SETTING_WINTER_BELOW,
     SIGNAL_HOUSE_UPDATED,
     SWITCH_ACTIVE,
     SWITCH_AUTO_SEASON,
 )
-from .logic import decision_temperature, ema, fuse_temperatures, in_time_window, season_next
+from .logic import calendar_offset, decision_temperature, ema, fuse_temperatures, in_time_window, season_next
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +75,7 @@ class House:
             SETTING_LIMIT_ON: DEFAULT_LIMIT_ON,
             SETTING_PROTECT: DEFAULT_PROTECT,
             SETTING_WINTER_BELOW: DEFAULT_WINTER_BELOW,
+            SETTING_CALENDAR: DEFAULT_CALENDAR,
             SETTING_NIGHT_START: DEFAULT_NIGHT_START,
             SETTING_NIGHT_END: DEFAULT_NIGHT_END,
             SWITCH_ACTIVE: True,
@@ -113,10 +116,32 @@ class House:
             return PHASE_SUMMER
         return PHASE_WINTER if self._winter else PHASE_TRANSITION
 
+    # --- Kalender + Wetter ---------------------------------------------
+    @property
+    def calendar_offset(self) -> float:
+        """Verschiebung aller Grenzen nach Jahreszeit (Kalender)."""
+        day = dt_util.now().timetuple().tm_yday
+        return calendar_offset(day, float(self.settings[SETTING_CALENDAR]))
+
+    @property
+    def limit_off(self) -> float:
+        """Heizung aus ab (inkl. Kalender)."""
+        return round(float(self.settings[SETTING_LIMIT_OFF]) + self.calendar_offset, 2)
+
+    @property
+    def limit_on(self) -> float:
+        """Heizung wieder an unter (inkl. Kalender)."""
+        return round(float(self.settings[SETTING_LIMIT_ON]) + self.calendar_offset, 2)
+
+    @property
+    def winter_below(self) -> float:
+        """Winter unter (inkl. Kalender)."""
+        return round(float(self.settings[SETTING_WINTER_BELOW]) + self.calendar_offset, 2)
+
     @callback
     def _update_winter(self) -> None:
         """Winter mit 1 K Hysterese: rein unter der Grenze, raus erst 1 K darueber."""
-        winter_below = float(self.settings[SETTING_WINTER_BELOW])
+        winter_below = self.winter_below
         reference = self.decision_temperature
         if reference is None:
             reference = self.outdoor
@@ -260,14 +285,9 @@ class House:
             if decision is None:
                 current = True
             else:
-                mid = (self.settings[SETTING_LIMIT_OFF] + self.settings[SETTING_LIMIT_ON]) / 2
-                current = decision < mid
+                current = decision < (self.limit_off + self.limit_on) / 2
         self.heating_season = season_next(
-            current,
-            decision,
-            self.outdoor,
-            float(self.settings[SETTING_LIMIT_OFF]),
-            float(self.settings[SETTING_LIMIT_ON]),
+            current, decision, self.outdoor, self.limit_off, self.limit_on
         )
 
     # --- Nacht ----------------------------------------------------------

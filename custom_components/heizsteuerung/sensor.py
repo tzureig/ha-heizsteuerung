@@ -31,7 +31,7 @@ async def async_setup_entry(
             DampedOutdoorSensor(data.house),
             OutdoorSensor(data.house, "aussentemperatur", lambda h: h.outdoor),
             OutdoorSensor(data.house, "vorhersage_12h", lambda h: h.forecast_mean),
-            OutdoorSensor(data.house, "heizgrenze_temperatur", lambda h: h.decision_temperature),
+            DecisionSensor(data.house),
             PhaseSensor(data.house),
         ]
     )
@@ -106,6 +106,27 @@ class _HouseSensor(HouseEntity, SensorEntity):
         self.async_on_remove(
             async_dispatcher_connect(self.hass, self.house.signal, self.async_write_ha_state)
         )
+
+
+class DecisionSensor(_HouseSensor):
+    """Entscheidungswert (Station + Vorhersage) mit den aktuell gueltigen Grenzen."""
+
+    def __init__(self, house: House) -> None:
+        super().__init__(house, "heizgrenze_temperatur")
+
+    @property
+    def native_value(self) -> float | None:
+        return self.house.decision_temperature
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        h = self.house
+        return {
+            "kalender_korrektur": h.calendar_offset,
+            "heizung_aus_ab": h.limit_off,
+            "heizung_an_unter": h.limit_on,
+            "winter_unter": h.winter_below,
+        }
 
 
 class PhaseSensor(HouseEntity, SensorEntity):

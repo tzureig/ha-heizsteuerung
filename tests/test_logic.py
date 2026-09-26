@@ -9,6 +9,7 @@ from custom_components.heizsteuerung.logic import (
     HeatRateLearner,
     PIState,
     PVState,
+    SunState,
     TargetInputs,
     compute_target,
     device_setpoint,
@@ -16,6 +17,7 @@ from custom_components.heizsteuerung.logic import (
     fuse_temperatures,
     in_time_window,
     preheat_start,
+    pv_boost_amount,
     pv_boost_next,
     round_setpoint,
     season_next,
@@ -84,15 +86,48 @@ def test_never_below_protection_unless_soll_lower():
     assert r.target == 15.0  # Benutzer will weniger als Schutz: min(soll, schutz)=15
 
 
-def test_pv_and_sun():
-    r = compute_target(inputs(pv_boost=True, present=False, pv_target=22.0))
-    assert r.target == 22.0 and r.reason == "pv_ueberschuss"
+def test_pv_boost_relative_to_room():
+    # Raum am Ziel -> +1 K (Waermespeicher)
+    r = compute_target(inputs(soll=20.0, room_temp=20.0, pv_boost=True))
+    assert r.target == 21.0 and r.reason == "pv_ueberschuss"
+    # Raum 0,5 K zu kalt -> +1,5 K
+    assert compute_target(inputs(soll=20.0, room_temp=19.5, pv_boost=True)).target == 21.5
+    # Raum deutlich zu kalt -> volle +2 K, schneller ans Ziel
+    assert compute_target(inputs(soll=20.0, room_temp=17.0, pv_boost=True)).target == 22.0
+    # Obergrenze
+    assert compute_target(inputs(soll=23.0, room_temp=20.0, pv_boost=True, pv_target=24.0)).target == 24.0
+    # Abwesend: Boost auf die Abwesenheitstemperatur, nicht auf den Komfort-Soll
+    assert compute_target(inputs(soll=21.0, present=False, room_temp=15.0, pv_boost=True)).target == 19.0
+    # Fenster/Aus/Heizgrenze haben Vorrang
+    assert compute_target(inputs(window_open=True, pv_boost=True)).off
+    assert compute_target(inputs(heating_season=False, pv_boost=True)).off
+    # PV gewinnt gegen Sonnenbremse (Ueberschuss ist gratis)
+    assert compute_target(inputs(soll=20.0, room_temp=20.0, pv_boost=True, sun_brake=True)).reason == "pv_ueberschuss"
+
+
+def test_pv_boost_amount():
+    assert pv_boost_amount(20.0, 20.0, 2.0) == 1.0
+    assert pv_boost_amount(20.0, 22.0, 2.0) == 1.0
+    assert pv_boost_amount(20.0, 19.2, 2.0) == 2.0  # 1.8 -> auf 0,5 gerundet
+    assert pv_boost_amount(20.0, 15.0, 2.0) == 2.0
+    assert pv_boost_amount(20.0, None, 2.0) == 1.0
+    assert pv_boost_amount(20.0, 18.0, 0.5) == 0.5
+
+
+def test_sun_brake_hold():
     r = compute_target(inputs(sun_brake=True))
     assert r.target == 16.0 and r.reason == "sonne"
-    assert sun_brake_next(False, 500, 350, 20.5, 21) is True
-    assert sun_brake_next(False, 500, 350, 19.0, 21) is False
-    assert sun_brake_next(True, 250, 350, 20.5, 21) is True
-    assert sun_brake_next(True, 150, 350, 20.5, 21) is False
+    st = SunState()
+    assert sun_brake_next(st, T0, 500, 350, 20.5, 21) is True
+    # Wolke nach 5 min -> bleibt wegen Haltezeit
+    assert sun_brake_next(st, T0 + timedelta(minutes=5), 100, 350, 20.5, 21) is True
+    # nach 20 min darf sie loesen
+    assert sun_brake_next(st, T0 + timedelta(minutes=21), 100, 350, 20.5, 21) is False
+    # Raum zu kalt -> sofort
+    st = SunState()
+    sun_brake_next(st, T0, 500, 350, 20.5, 21)
+    assert sun_brake_next(st, T0 + timedelta(minutes=1), 500, 350, 18.5, 21) is False
+    assert sun_brake_next(SunState(), T0, 500, 350, 19.0, 21) is False
 
 
 def test_season_hysteresis():

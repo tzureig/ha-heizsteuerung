@@ -73,8 +73,9 @@
             "sun_brake": "Sonnenbremse",
             "sun_threshold": "Sonnenbremse ab",
             "pv_boost": "PV-Überschuss nutzen",
-            "pv_target": "Ziel bei PV-Überschuss",
-            "pv_power": "Heizleistung"
+            "pv_target": "PV-Boost höchstens bis",
+            "pv_power": "Heizleistung",
+            "pv_max_boost": "PV-Boost bis zu +"
           },
           "data_description": {
             "climates": "Alle Heizkörper-/Fußbodenthermostate dieses Raums.",
@@ -85,7 +86,9 @@
             "default_target": "Soll beim ersten Start. Danach gilt der Wert aus HomeKit.",
             "summer_off": "Aus = dieser Raum heizt auch, wenn es draußen warm ist.",
             "sun_brake": "Bei starker Sonne nicht aktiv heizen, solange der Raum fast warm ist.",
-            "pv_boost": "Nur für elektrische Fußbodenheizung."
+            "pv_boost": "Nur für elektrische Fußbodenheizung. Heizt stärker, wenn reiner Dach-Überschuss ins Netz geht (Haus, Akku und Autos sind schon versorgt).",
+            "pv_max_boost": "+1 K wenn der Raum warm ist, bis zu diesem Wert wenn er kalt ist.",
+            "pv_target": "Obergrenze der Raumtemperatur während des Boosts."
           }
         },
         "reconfigure": {
@@ -109,8 +112,9 @@
             "sun_brake": "Sonnenbremse",
             "sun_threshold": "Sonnenbremse ab",
             "pv_boost": "PV-Überschuss nutzen",
-            "pv_target": "Ziel bei PV-Überschuss",
-            "pv_power": "Heizleistung"
+            "pv_target": "PV-Boost höchstens bis",
+            "pv_power": "Heizleistung",
+            "pv_max_boost": "PV-Boost bis zu +"
           },
           "data_description": {
             "climates": "Alle Heizkörper-/Fußbodenthermostate dieses Raums.",
@@ -121,7 +125,9 @@
             "default_target": "Soll beim ersten Start. Danach gilt der Wert aus HomeKit.",
             "summer_off": "Aus = dieser Raum heizt auch, wenn es draußen warm ist.",
             "sun_brake": "Bei starker Sonne nicht aktiv heizen, solange der Raum fast warm ist.",
-            "pv_boost": "Nur für elektrische Fußbodenheizung."
+            "pv_boost": "Nur für elektrische Fußbodenheizung. Heizt stärker, wenn reiner Dach-Überschuss ins Netz geht (Haus, Akku und Autos sind schon versorgt).",
+            "pv_max_boost": "+1 K wenn der Raum warm ist, bis zu diesem Wert wenn er kalt ist.",
+            "pv_target": "Obergrenze der Raumtemperatur während des Boosts."
           }
         }
       },

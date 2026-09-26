@@ -40,6 +40,7 @@ CONF_SUN_THRESHOLD: Final = "sun_threshold"
 CONF_PV_BOOST: Final = "pv_boost"
 CONF_PV_TARGET: Final = "pv_target"
 CONF_PV_POWER: Final = "pv_power"
+CONF_PV_MAX_BOOST: Final = "pv_max_boost"
 
 HEATING_RADIATOR: Final = "radiator"
 HEATING_FLOOR_ELECTRIC: Final = "floor_electric"

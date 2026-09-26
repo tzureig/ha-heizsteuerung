@@ -43,6 +43,7 @@ from .const import (
     CONF_NIGHT_SETBACK,
     CONF_PERSONS,
     CONF_PV_BOOST,
+    CONF_PV_MAX_BOOST,
     CONF_PV_POWER,
     CONF_PV_TARGET,
     CONF_SUMMER_OFF,
@@ -68,6 +69,7 @@ from .logic import (
     HeatRateLearner,
     PIState,
     PVState,
+    SunState,
     TargetInputs,
     TargetResult,
     compute_target,
@@ -106,6 +108,7 @@ class Room:
         default_rate = profile_for(self.heating_type, bool(self.cfg.get(CONF_TEMP_SENSORS))).default_rate
         self.learner = HeatRateLearner(rate=default_rate)
         self.pv = PVState()
+        self.sun = SunState()
         self.sun_brake = False
         self.window_open = False
         self.present = True
@@ -429,7 +432,8 @@ class Room:
         # Sonne / PV
         if self.cfg.get(CONF_SUN_BRAKE):
             self.sun_brake = sun_brake_next(
-                self.sun_brake,
+                self.sun,
+                now,
                 house.solar_radiation,
                 float(self.cfg.get(CONF_SUN_THRESHOLD, 350)),
                 self.room_temp,
@@ -462,7 +466,8 @@ class Room:
                 previous_reason=previous_reason,
                 sun_brake=self.sun_brake,
                 pv_boost=pv_active,
-                pv_target=float(self.cfg.get(CONF_PV_TARGET, 22)),
+                pv_target=float(self.cfg.get(CONF_PV_TARGET, 24)),
+                pv_max_boost=float(self.cfg.get(CONF_PV_MAX_BOOST, 2)),
             )
         )
         self.reason = self.result.reason if house.active else REASON_INACTIVE

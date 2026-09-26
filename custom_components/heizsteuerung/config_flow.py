@@ -33,6 +33,7 @@ from .const import (
     CONF_OUTDOOR_SENSORS,
     CONF_PERSONS,
     CONF_PV_BOOST,
+    CONF_PV_MAX_BOOST,
     CONF_PV_POWER,
     CONF_PV_TARGET,
     CONF_SOLAR_SENSOR,
@@ -101,7 +102,8 @@ ROOM_SCHEMA = vol.Schema(
         vol.Required(CONF_SUN_BRAKE, default=False): selector.BooleanSelector(),
         vol.Required(CONF_SUN_THRESHOLD, default=350): _temp(50, 1200, 10, "W/m²"),
         vol.Required(CONF_PV_BOOST, default=False): selector.BooleanSelector(),
-        vol.Required(CONF_PV_TARGET, default=22.0): _temp(15, 28),
+        vol.Required(CONF_PV_MAX_BOOST, default=2.0): _temp(0.5, 4, unit="K"),
+        vol.Required(CONF_PV_TARGET, default=24.0): _temp(15, 28),
         vol.Required(CONF_PV_POWER, default=2000): _temp(100, 10000, 25, "W"),
     }
 )

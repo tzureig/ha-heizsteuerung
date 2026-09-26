@@ -178,7 +178,8 @@ class TargetInputs:
     previous_reason: str | None = None
     sun_brake: bool = False
     pv_boost: bool = False
-    pv_target: float = 22.0
+    pv_target: float = 24.0  # Obergrenze waehrend PV-Boost
+    pv_max_boost: float = 2.0  # maximale Anhebung in K
 
 
 @dataclass
@@ -191,7 +192,7 @@ class TargetResult:
 
 
 def compute_target(i: TargetInputs) -> TargetResult:
-    """Prioritaeten: Aus > Fenster > Heizgrenze > PV > Abwesend/Nacht/Sonne > Komfort."""
+    """Prioritaeten: Aus > Fenster > Heizgrenze > Abwesend/Nacht > PV-Boost/Sonne > Komfort."""
     if not i.hvac_on or i.soll <= OFF_TEMP:
         return TargetResult(OFF_TEMP, REASON_OFF, True)
     if i.window_open:
@@ -207,9 +208,6 @@ def compute_target(i: TargetInputs) -> TargetResult:
                 return TargetResult(protect, REASON_PROTECT, False)
         return TargetResult(OFF_TEMP, REASON_SUMMER, True)
 
-    if i.pv_boost:
-        return TargetResult(min(max(i.soll, i.pv_target), MAX_TARGET), REASON_PV, False)
-
     target, reason = i.soll, REASON_COMFORT
     if not i.present and i.eco < target:
         target, reason = i.eco, REASON_ABSENT
@@ -219,7 +217,14 @@ def compute_target(i: TargetInputs) -> TargetResult:
             target, reason = night_target, REASON_NIGHT
     elif i.preheat and reason == REASON_COMFORT:
         reason = REASON_PREHEAT
-    if i.sun_brake and protect < target:
+    if i.pv_boost:
+        # Reiner Dach-Ueberschuss: Waerme im Estrich speichern. Je kaelter der
+        # Raum gegenueber dem Ziel, desto mehr Anhebung (+1 bis +max).
+        boost = pv_boost_amount(target, i.room_temp, i.pv_max_boost)
+        boosted = min(target + boost, i.pv_target, MAX_TARGET)
+        if boosted > target:
+            target, reason = boosted, REASON_PV
+    elif i.sun_brake and protect < target:
         target, reason = protect, REASON_SUN
 
     if target < protect:
@@ -341,19 +346,52 @@ class HeatRateLearner:
 # ---------------------------------------------------------------------------
 # Sonne / PV
 # ---------------------------------------------------------------------------
+def pv_boost_amount(target: float, room_temp: float | None, max_boost: float) -> float:
+    """Anhebung bei PV-Ueberschuss: +1 K am Ziel, bis +max_boost wenn der Raum kalt ist.
+
+    Raum 1 K (oder mehr) unter dem Ziel -> volle Anhebung, damit er schneller warm
+    wird; Raum schon warm -> nur +1 K Waermespeicher im Estrich.
+    """
+    if max_boost <= 0:
+        return 0.0
+    low = min(1.0, max_boost)
+    if room_temp is None:
+        return low
+    boost = 1.0 + (target - room_temp)
+    boost = max(low, min(max_boost, boost))
+    return round(boost * 2) / 2
+
+
+@dataclass
+class SunState:
+    """Zustand der Sonnenbremse mit Mindest-Haltezeit (kein Flattern bei Wolken)."""
+
+    active: bool = False
+    since: datetime | None = None
+
+
 def sun_brake_next(
-    active: bool,
+    state: SunState,
+    now: datetime,
     radiation: float | None,
     threshold: float,
     room_temp: float | None,
     soll: float,
+    hold: timedelta = timedelta(minutes=20),
 ) -> bool:
     """Bei starker Sonne nicht aktiv heizen, solange der Raum fast warm ist."""
     if radiation is None or room_temp is None:
-        return False
-    if active:
-        return radiation >= threshold * 0.6 and room_temp >= soll - 2.0
-    return radiation >= threshold and room_temp >= soll - 1.0
+        want = False
+    elif state.active:
+        want = radiation >= threshold * 0.6 and room_temp >= soll - 2.0
+    else:
+        want = radiation >= threshold and room_temp >= soll - 1.0
+    if want != state.active:
+        # Zu kalt geworden -> sofort loesen, sonst Mindest-Haltezeit abwarten
+        too_cold = room_temp is not None and room_temp < soll - 2.0
+        if state.since is None or now - state.since >= hold or too_cold:
+            state.active, state.since = want, now
+    return state.active
 
 
 @dataclass

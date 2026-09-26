@@ -234,39 +234,39 @@ async def test_night_and_preheat(hass: HomeAssistant, freezer, setup) -> None:
     hass.states.async_set("sensor.raum", "21.0")
     # 01:00 lokale Zeit -> Nacht
     freezer.move_to(dt_util.as_utc(dt_util.now().replace(hour=1, minute=0) + timedelta(days=1)))
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizung_wohnzimmer_grund").state == "nacht"
     assert float(hass.states.get("sensor.heizung_wohnzimmer_effektives_ziel").state) == 18.0
     # Raum kuehlt auf 18 °C -> Vorheizen muss vor 05:00 beginnen
     hass.states.async_set("sensor.raum", "18.0")
     freezer.move_to(dt_util.as_utc(dt_util.now().replace(hour=3, minute=0)))
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizung_wohnzimmer_grund").state == "vorheizen"
     freezer.move_to(dt_util.as_utc(dt_util.now().replace(hour=5, minute=1)))
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizung_wohnzimmer_grund").state == "komfort"
 
 
 async def test_winter_phase(hass: HomeAssistant, freezer, setup) -> None:
     """Bei 2 °C draussen ist Winter: nachts nur 2 K absenken; ueber 5 °C Uebergang."""
     _entry, _set_temp, _ = setup
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "winter"
     await hass.services.async_call(
         "number", "set_value",
         {"entity_id": "number.heizsteuerung_winter_unter", "value": 0.0}, blocking=True,
     )
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "uebergang"
     await hass.services.async_call(
         "number", "set_value",
         {"entity_id": "number.heizsteuerung_winter_unter", "value": 5.0}, blocking=True,
     )
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "winter"
     hass.states.async_set("sensor.raum", "21.0")
     freezer.move_to(dt_util.as_utc(dt_util.now().replace(hour=1, minute=0) + timedelta(days=1)))
-    await advance(hass, freezer, 60)
+    await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizung_wohnzimmer_grund").state == "nacht"
     assert float(hass.states.get("sensor.heizung_wohnzimmer_effektives_ziel").state) == 19.0
 

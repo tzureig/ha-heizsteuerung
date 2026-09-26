@@ -30,6 +30,9 @@ from .const import (
 )
 
 
+# Sommer: Raum darf hoechstens so viel unter den Soll fallen, dann wird geheizt
+SUMMER_MAX_DROP = 3.0
+
 # ---------------------------------------------------------------------------
 # Heizsystem-Profile
 # ---------------------------------------------------------------------------
@@ -210,11 +213,13 @@ def compute_target(i: TargetInputs) -> TargetResult:
     protect = min(i.soll, i.protect)
 
     if not i.heating_season and i.summer_off:
-        # Auch ausserhalb der Heizperiode darf der Raum nie auskuehlen.
+        # Auch ausserhalb der Heizperiode darf der Raum nie richtig kalt werden:
+        # hoechstens SUMMER_MAX_DROP unter den Soll, mindestens der Auskuehlschutz.
+        keep = min(i.soll, max(protect, i.soll - SUMMER_MAX_DROP))
         if i.room_temp is not None:
-            limit = protect + 0.5 if i.previous_reason == REASON_PROTECT else protect
+            limit = keep + 0.5 if i.previous_reason == REASON_PROTECT else keep
             if i.room_temp < limit:
-                return TargetResult(protect, REASON_PROTECT, False)
+                return TargetResult(keep, REASON_PROTECT, False)
         return TargetResult(OFF_TEMP, REASON_SUMMER, True)
 
     target, reason = i.soll, REASON_COMFORT

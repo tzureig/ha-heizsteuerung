@@ -56,13 +56,20 @@ def test_window_beats_everything():
 def test_summer_off_with_protection():
     r = compute_target(inputs(heating_season=False))
     assert r.off and r.reason == "heizgrenze"
-    r = compute_target(inputs(heating_season=False, room_temp=15.5))
-    assert not r.off and r.target == 16.0 and r.reason == "auskuehlschutz"
-    # Hysterese: bleibt an bis Schutz + 0,5
-    r = compute_target(inputs(heating_season=False, room_temp=16.3, previous_reason="auskuehlschutz"))
+    # Soll 21 -> im Sommer nie unter 18 °C
+    r = compute_target(inputs(heating_season=False, room_temp=17.9))
+    assert not r.off and r.target == 18.0 and r.reason == "auskuehlschutz"
+    assert compute_target(inputs(heating_season=False, room_temp=18.1)).reason == "heizgrenze"
+    # Hysterese: bleibt an bis 18,5
+    r = compute_target(inputs(heating_season=False, room_temp=18.3, previous_reason="auskuehlschutz"))
     assert r.reason == "auskuehlschutz"
-    r = compute_target(inputs(heating_season=False, room_temp=16.6, previous_reason="auskuehlschutz"))
+    r = compute_target(inputs(heating_season=False, room_temp=18.6, previous_reason="auskuehlschutz"))
     assert r.reason == "heizgrenze"
+    # Niedriger Soll (18): absolute Grenze 16 °C greift
+    r = compute_target(inputs(soll=18.0, heating_season=False, room_temp=15.5))
+    assert r.target == 16.0
+    # Soll unter Schutz (15): nie waermer als der Soll
+    assert compute_target(inputs(soll=15.0, heating_season=False, room_temp=12.0)).target == 15.0
     # Raum ohne Heizgrenze heizt trotzdem
     assert compute_target(inputs(heating_season=False, summer_off=False)).reason == "komfort"
 

@@ -299,3 +299,47 @@ async def test_unload_and_restore(hass: HomeAssistant, freezer, setup) -> None:
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     assert hass.states.get(ROOM).attributes["temperature"] == 22.5
+
+
+async def test_all_settings_survive_restart(hass: HomeAssistant, freezer, setup) -> None:
+    """Soll, Aus-Zustand, Nachtzeiten, Grenzen und Schalter bleiben nach Neustart erhalten."""
+    entry, _set_temp, _ = setup
+    await hass.services.async_call(
+        "climate", "set_temperature", {"entity_id": ROOM, "temperature": 5}, blocking=True
+    )
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": "number.heizsteuerung_winter_unter", "value": 3.5}, blocking=True
+    )
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": "number.heizsteuerung_heizgrenze_aus_ab", "value": 17.5}, blocking=True
+    )
+    await hass.services.async_call(
+        "time", "set_value", {"entity_id": "time.heizsteuerung_nacht_beginn", "time": "23:30:00"}, blocking=True
+    )
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": "switch.heizsteuerung_automatische_heizgrenze"}, blocking=True
+    )
+    room = next(iter(entry.runtime_data.rooms.values()))
+    room.learner.rate, room.learner.samples = 0.9, 3
+    await advance(hass, freezer, 5)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ROOM)
+    assert state.state == "off" and state.attributes["temperature"] == 5.0
+    assert state.attributes["soll_komfort"] == 21.0
+    assert state.attributes["aufheizrate"] == 0.9 and state.attributes["aufheizrate_messungen"] == 3
+    assert hass.states.get("number.heizsteuerung_winter_unter").state == "3.5"
+    assert hass.states.get("number.heizsteuerung_heizgrenze_aus_ab").state == "17.5"
+    assert hass.states.get("time.heizsteuerung_nacht_beginn").state == "23:30:00"
+    assert hass.states.get("switch.heizsteuerung_automatische_heizgrenze").state == "off"
+    house = entry.runtime_data.house
+    assert house.settings["winter_below"] == 3.5
+    assert str(house.settings["night_start"]) == "23:30:00"
+    assert house.settings["auto_season"] is False
+    # Soll wieder hoch -> letzter Komfortwert kommt zurueck ueber HEAT
+    await hass.services.async_call(
+        "climate", "set_hvac_mode", {"entity_id": ROOM, "hvac_mode": "heat"}, blocking=True
+    )
+    assert hass.states.get(ROOM).attributes["temperature"] == 21.0

@@ -61,9 +61,11 @@ RADIATOR_EXTERNAL = HeatingProfile(
     kp=1.5, ki=0.5, kd=KD_RAD, brake_band=BAND_RAD, i_min=-2.0, i_max=4.0, below=3.0, above=5.0,
     write_interval=timedelta(minutes=10), default_rate=1.5, max_lead=timedelta(hours=2),
 )
-# Ohne externen Sensor misst das Thermostat selbst: nur sanft nachhelfen.
+# Ohne externen Sensor misst das Thermostat selbst und regelt intern schon exakt
+# (PI im Geraet). Ein zusaetzlicher Integralanteil wuerde nur Ueberschwingen
+# erzeugen – deshalb nur die Anhebung zum schnellen Aufheizen.
 RADIATOR_INTERNAL = HeatingProfile(
-    kp=1.0, ki=0.25, kd=KD_INT, brake_band=BAND_INT, i_min=-1.0, i_max=1.5, below=1.5, above=2.5,
+    kp=1.0, ki=0.0, kd=KD_INT, brake_band=BAND_INT, i_min=0.0, i_max=0.0, below=1.5, above=2.5,
     write_interval=timedelta(minutes=10), default_rate=1.5, max_lead=timedelta(hours=2),
 )
 FLOOR = HeatingProfile(
@@ -267,11 +269,11 @@ def device_setpoint(
     if hours > 0 or state.last_temp is None:
         state.last_temp = room_temp
 
-    if not freeze:
+    if not freeze and abs(error) < 1.5:
         # Anti-Windup: bei grosser Abweichung nicht integrieren, der P-Anteil reicht.
-        if abs(error) < 1.5:
-            state.integral += profile.ki * error * hours
-        state.integral = max(profile.i_min, min(profile.i_max, state.integral))
+        state.integral += profile.ki * error * hours
+    # Immer begrenzen – auch gespeicherte Werte aus aelteren Versionen/Profilen
+    state.integral = max(profile.i_min, min(profile.i_max, state.integral))
 
     # Bremse nur in Zielnaehe: weit weg wird voll geheizt, kurz davor die
     # Nachwaerme des Heizkoerpers/Estrichs vorweggenommen.

@@ -121,10 +121,23 @@ def test_setpoint_boost_and_pullback():
 def test_integral_limits():
     pi = PIState()
     for _ in range(1000):
-        device_setpoint(RADIATOR_INTERNAL, pi, 20.0, 19.5, timedelta(minutes=5), 5, 30)
-    assert pi.integral == RADIATOR_INTERNAL.i_max
-    device_setpoint(RADIATOR_INTERNAL, pi, 20.0, 19.5, timedelta(minutes=5), 5, 30, freeze=True)
-    assert pi.integral == RADIATOR_INTERNAL.i_max
+        device_setpoint(RADIATOR_EXTERNAL, pi, 20.0, 19.5, timedelta(minutes=5), 5, 30)
+    assert pi.integral == RADIATOR_EXTERNAL.i_max
+    device_setpoint(RADIATOR_EXTERNAL, pi, 20.0, 19.5, timedelta(minutes=5), 5, 30, freeze=True)
+    assert pi.integral == RADIATOR_EXTERNAL.i_max
+
+
+def test_internal_sensor_no_overshoot_from_learning():
+    """Bad OG-Fall: Thermostat misst selbst, Raum am Ziel -> Thermostat exakt aufs Ziel.
+
+    Ein aus aelterer Version gespeicherter Lernanteil (+1,5) darf nicht mehr wirken.
+    """
+    pi = PIState(integral=1.48)
+    sp = device_setpoint(RADIATOR_INTERNAL, pi, 22.0, 22.1, timedelta(minutes=1), 5, 30)
+    assert sp == 22.0
+    assert pi.integral == 0.0
+    # weit unter dem Ziel: trotzdem schnell aufheizen
+    assert device_setpoint(RADIATOR_INTERNAL, PIState(), 22.0, 20.0, timedelta(minutes=1), 5, 30) == 24.0
 
 
 def test_helpers():

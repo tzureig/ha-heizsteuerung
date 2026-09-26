@@ -25,6 +25,7 @@ def simulate(profile, target, start, outside, hours, external=True, bias=1.5, ga
     radiator = start
     pi = PIState()
     sp = target
+    dev_i = 0.0
     history = []
     step = 1  # Minute
     for minute in range(int(hours * 60)):
@@ -32,7 +33,10 @@ def simulate(profile, target, start, outside, hours, external=True, bias=1.5, ga
         measured = room if external else dev_sensor
         if minute % write_every == 0:
             sp = device_setpoint(profile, pi, target, measured, timedelta(minutes=write_every), 5, 30)
-        valve = max(0.0, min(1.0, (sp - dev_sensor) / 1.0))  # P-Regler im Ventil
+        # PI-Regler im Ventil (wie Homematic IP): gleicht bleibende Abweichung aus
+        dev_error = sp - dev_sensor
+        dev_i = max(-0.5, min(0.5, dev_i + 0.3 * dev_error * step / 60))
+        valve = max(0.0, min(1.0, dev_error / 1.0 + dev_i))
         # Heizkoerper-Temperatur folgt Ventil (Vorlauf 55 °C), traege
         radiator += (valve * 55 + (1 - valve) * room - radiator) * (step / (15 * slow))
         heat = max(radiator - room, 0) / 35 * gain  # K/h

@@ -7,7 +7,7 @@ import pytest
 
 from homeassistant.components.climate import DATA_COMPONENT
 from homeassistant.config_entries import ConfigSubentryData
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -391,3 +391,45 @@ async def test_calendar_shifts_limits(hass: HomeAssistant, freezer, setup) -> No
     )
     await advance(hass, freezer, 120)
     assert hass.states.get("binary_sensor.heizsteuerung_heizperiode").state == "off"
+
+
+async def test_window_and_absence_at_same_time(hass: HomeAssistant, freezer, setup) -> None:
+    """Fenster auf, waehrend gerade jemand geht: Fenster reagiert trotzdem nach 30 s."""
+    _entry, set_temp, _ = setup
+    await advance(hass, freezer, 90)
+    hass.states.async_set("person.anna", "not_home")
+    hass.states.async_set("binary_sensor.fenster_1", "on")
+    for _ in range(35):
+        freezer.tick(timedelta(seconds=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert last_temp(set_temp) == 5.0
+
+
+async def test_no_duplicate_writes_when_device_slow(hass: HomeAssistant, freezer, setup) -> None:
+    """Langsame Cloud: waehrend ein Befehl laeuft, wird nicht doppelt gesendet."""
+    import asyncio
+    _entry, set_temp, _ = setup
+    component = hass.data[DATA_COMPONENT]
+    release = asyncio.Event()
+    calls: list[float] = []
+
+    async def slow(call: ServiceCall) -> None:
+        if call.data["entity_id"] in (CLIMATE, [CLIMATE]):
+            calls.append(call.data["temperature"])
+            await release.wait()
+            state = hass.states.get(CLIMATE)
+            hass.states.async_set(CLIMATE, "heat", {**state.attributes, "temperature": call.data["temperature"]})
+        else:
+            await component.get_entity(ROOM).async_set_temperature(temperature=call.data["temperature"])
+
+    hass.services.async_register("climate", "set_temperature", slow)
+    device_state(hass, mode="heat")
+    for _ in range(4):
+        freezer.tick(timedelta(seconds=60))
+        async_fire_time_changed(hass)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+    assert len(calls) == 1
+    release.set()
+    await hass.async_block_till_done()

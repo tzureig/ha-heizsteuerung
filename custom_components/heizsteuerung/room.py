@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
@@ -132,7 +133,11 @@ class Room:
         self._unsubs: list[Callable[[], None]] = []
         self._pending: CALLBACK_TYPE | None = None
         self._pending_force = False
-        self._timer: CALLBACK_TYPE | None = None
+        self._write_interval = timedelta(minutes=10)
+        self._timers: dict[str, CALLBACK_TYPE] = {}
+        self._apply_lock = asyncio.Lock()
+        self._apply_again = False
+        self._apply_urgent = False
 
     # --- Konfiguration --------------------------------------------------
     def _list(self, key: str) -> list[str]:
@@ -219,10 +224,12 @@ class Room:
     def async_stop(self) -> None:
         while self._unsubs:
             self._unsubs.pop()()
-        for handle in (self._pending, self._timer):
-            if handle:
-                handle()
-        self._pending = self._timer = None
+        if self._pending:
+            self._pending()
+        for handle in self._timers.values():
+            handle()
+        self._pending = None
+        self._timers.clear()
 
     @callback
     def _on_state_change(self, event: Event[EventStateChangedData]) -> None:
@@ -337,7 +344,7 @@ class Room:
         if remaining <= 0:
             self.window_open = raw
         else:
-            self._schedule(remaining + 0.5)
+            self._schedule("window", remaining + 0.5)
 
     def _update_presence(self, now: datetime) -> None:
         raw = self._presence_raw()
@@ -351,18 +358,19 @@ class Room:
         if remaining <= 0:
             self.present = False
         else:
-            self._schedule(remaining + 0.5)
+            self._schedule("presence", remaining + 0.5)
 
-    def _schedule(self, seconds: float) -> None:
-        if self._timer:
-            self._timer()
+    def _schedule(self, name: str, seconds: float) -> None:
+        """Eigener Wecker je Zweck (Fenster/Abwesenheit), damit sich nichts ueberschreibt."""
+        if handle := self._timers.pop(name, None):
+            handle()
 
         @callback
         def _fire(_now: datetime) -> None:
-            self._timer = None
+            self._timers.pop(name, None)
             self._recalculate(dt_util.utcnow(), force=True)
 
-        self._timer = async_call_later(self.hass, max(seconds, 1.0), _fire)
+        self._timers[name] = async_call_later(self.hass, max(seconds, 1.0), _fire)
 
     def _hvac_action(self, off: bool) -> HVACAction:
         if off:
@@ -491,11 +499,14 @@ class Room:
         self._last_off = self.result.off
         self._last_target = self.result.target
 
+        self._write_interval = profile.write_interval
         if house.active and self.has_devices and self._ready(now):
-            self.hass.async_create_task(
-                self._async_apply(now, self.setpoint, urgent, profile.write_interval),
-                eager_start=True,
-            )
+            self._apply_urgent = self._apply_urgent or urgent
+            if self._apply_lock.locked():
+                # Laeuft schon (z. B. Homematic-Cloud antwortet langsam): danach nochmal
+                self._apply_again = True
+            else:
+                self.hass.async_create_task(self._async_apply_latest(), eager_start=True)
 
         self.hvac_action = self._hvac_action(self.result.off)
         self.learner.update(now, self.result.target, self.room_temp, self.hvac_action == HVACAction.HEATING)
@@ -516,6 +527,17 @@ class Room:
             except (TypeError, ValueError):
                 continue
         return (max(lows) if lows else OFF_TEMP, min(highs) if highs else 30.0)
+
+    async def _async_apply_latest(self) -> None:
+        """Immer nur ein Schreibvorgang je Raum, immer mit dem neuesten Sollwert."""
+        async with self._apply_lock:
+            while True:
+                self._apply_again = False
+                urgent, self._apply_urgent = self._apply_urgent, False
+                if self.setpoint is not None and self.house.active:
+                    await self._async_apply(dt_util.utcnow(), self.setpoint, urgent, self._write_interval)
+                if not self._apply_again:
+                    break
 
     async def _async_apply(self, now: datetime, setpoint: float, urgent: bool, interval: timedelta) -> None:
         for entity_id in self.climates:

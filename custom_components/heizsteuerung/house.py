@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import datetime, time, timedelta
 import logging
@@ -239,15 +240,16 @@ class House:
             if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
                 continue
             try:
-                response = await self.hass.services.async_call(
-                    "weather",
-                    "get_forecasts",
-                    {"type": "hourly"},
-                    target={"entity_id": entity_id},
-                    blocking=True,
-                    return_response=True,
-                )
-            except Exception as err:  # noqa: BLE001 - jede Quelle darf ausfallen
+                async with asyncio.timeout(30):
+                    response = await self.hass.services.async_call(
+                        "weather",
+                        "get_forecasts",
+                        {"type": "hourly"},
+                        target={"entity_id": entity_id},
+                        blocking=True,
+                        return_response=True,
+                    )
+            except Exception as err:  # noqa: BLE001 - jede Quelle darf ausfallen (auch Timeout)
                 _LOGGER.debug("Keine Stundenvorhersage von %s: %s", entity_id, err)
                 continue
             forecast = (response or {}).get(entity_id, {}).get("forecast") or []

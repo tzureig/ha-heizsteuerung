@@ -188,7 +188,10 @@ async def test_window_open_close(hass: HomeAssistant, freezer, setup) -> None:
     await advance(hass, freezer, 30)
     assert last_temp(set_temp) == 5.0
     assert hass.states.get("sensor.heizung_wohnzimmer_grund").state == "fenster_offen"
-    assert hass.states.get("binary_sensor.heizung_wohnzimmer_fenster").state == "on"
+    fenster = hass.states.get("binary_sensor.heizung_wohnzimmer_fenster")
+    assert fenster.state == "on"
+    assert fenster.attributes["anzahl_offen"] == 1
+    assert fenster.attributes["offene_fenster"] == "fenster 2"
     hass.states.async_set("binary_sensor.fenster_2", "off")
     await advance(hass, freezer, 70)
     assert last_temp(set_temp) > 21.0

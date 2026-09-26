@@ -271,6 +271,25 @@ class Room:
             return True, min(opened)
         return False, max(changed) if changed else None
 
+    def window_details(self) -> dict[str, Any]:
+        """Welche Kontakte offen / zu / nicht erreichbar sind (fuer die Anzeige)."""
+        opened, closed, missing = [], [], []
+        for entity_id in self._list(CONF_WINDOWS):
+            state = self.hass.states.get(entity_id)
+            name = (state.name if state else None) or entity_id
+            if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+                missing.append(name)
+            elif state.state.lower() in OPEN_STATES:
+                opened.append(name)
+            else:
+                closed.append(name)
+        return {
+            "offene_fenster": ", ".join(opened) if opened else "keins",
+            "anzahl_offen": len(opened),
+            "geschlossen": closed,
+            "nicht_erreichbar": missing,
+        }
+
     def _presence_raw(self) -> bool:
         persons = self._list(CONF_PERSONS)
         if not persons:

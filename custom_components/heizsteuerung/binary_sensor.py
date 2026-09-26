@@ -67,6 +67,10 @@ class RoomWindowSensor(_RoomBinary):
     def is_on(self) -> bool:
         return self.room.window_open
 
+    @property
+    def extra_state_attributes(self) -> dict:
+        return self.room.window_details()
+
 
 class RoomPresenceSensor(_RoomBinary):
     _attr_device_class = BinarySensorDeviceClass.OCCUPANCY

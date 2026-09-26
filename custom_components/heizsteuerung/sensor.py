@@ -155,7 +155,10 @@ class DampedOutdoorSensor(_HouseSensor, RestoreSensor):
         if (last := await self.async_get_last_state()) is not None:
             value = last.attributes.get("heizperiode")
             season = value if isinstance(value, bool) else None
-        self.house.restore(damped, season)
+            winter = last.attributes.get("winter")
+        else:
+            winter = None
+        self.house.restore(damped, season, winter if isinstance(winter, bool) else None)
 
     @property
     def native_value(self) -> float | None:
@@ -163,4 +166,4 @@ class DampedOutdoorSensor(_HouseSensor, RestoreSensor):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {"heizperiode": self.house.heating_season}
+        return {"heizperiode": self.house.heating_season, "winter": self.house.phase == "winter"}

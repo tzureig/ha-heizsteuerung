@@ -83,6 +83,7 @@ class House:
         self.forecast_mean: float | None = None
         self.forecast_updated: datetime | None = None
         self.heating_season: bool | None = None
+        self._winter = False
         self._last_damp_update: datetime | None = None
         self._unsubs: list[Callable[[], None]] = []
         self._restored = False
@@ -110,16 +111,26 @@ class House:
         """Jahreszeit: Sommer (Heizgrenze erreicht), Winter (kalt) oder Uebergang."""
         if self.heating_season is False:
             return PHASE_SUMMER
+        return PHASE_WINTER if self._winter else PHASE_TRANSITION
+
+    @callback
+    def _update_winter(self) -> None:
+        """Winter mit 1 K Hysterese: rein unter der Grenze, raus erst 1 K darueber."""
         winter_below = float(self.settings[SETTING_WINTER_BELOW])
         reference = self.decision_temperature
         if reference is None:
             reference = self.outdoor
-        if reference is not None and reference < winter_below:
-            return PHASE_WINTER
-        return PHASE_TRANSITION
+        if reference is None:
+            return
+        if self._winter:
+            self._winter = reference < winter_below + 1.0
+        else:
+            self._winter = reference < winter_below
 
-    def restore(self, damped: float | None, season: bool | None) -> None:
+    def restore(self, damped: float | None, season: bool | None, winter: bool | None = None) -> None:
         """Gespeicherte Werte nach Neustart uebernehmen (vom Sensor-Entity)."""
+        if winter is not None:
+            self._winter = winter
         if damped is not None and self.outdoor_damped is None:
             self.outdoor_damped = damped
         if season is not None and self.heating_season is None:
@@ -235,6 +246,11 @@ class House:
 
     @callback
     def _update_season(self) -> None:
+        self._update_winter()
+        self._update_heating_season()
+
+    @callback
+    def _update_heating_season(self) -> None:
         if not self.settings[SWITCH_AUTO_SEASON]:
             self.heating_season = True
             return

@@ -258,6 +258,26 @@ async def test_winter_phase(hass: HomeAssistant, freezer, setup) -> None:
     )
     await advance(hass, freezer, 120)
     assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "uebergang"
+    # Hysterese: bei 2 °C draussen und Grenze 1,5 -> noch Uebergang (rein erst unter 1,5)
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.heizsteuerung_winter_unter", "value": 1.5}, blocking=True,
+    )
+    await advance(hass, freezer, 120)
+    assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "uebergang"
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.heizsteuerung_winter_unter", "value": 5.0}, blocking=True,
+    )
+    await advance(hass, freezer, 120)
+    assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "winter"
+    # im Winter: Grenze auf 1,5 -> 2 °C liegt noch innerhalb 1 K Puffer -> bleibt Winter
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.heizsteuerung_winter_unter", "value": 1.5}, blocking=True,
+    )
+    await advance(hass, freezer, 120)
+    assert hass.states.get("sensor.heizsteuerung_jahreszeit").state == "winter"
     await hass.services.async_call(
         "number", "set_value",
         {"entity_id": "number.heizsteuerung_winter_unter", "value": 5.0}, blocking=True,
